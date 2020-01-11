@@ -49,7 +49,7 @@ def get_video_and_transcript_for_event_id(event_id: str) -> Tuple[Path]:
 
 
 def create_gif_from_pngs(images):
-    writer = get_writer("thumbnail.gif")
+    writer = get_writer("thumbnail.gif", fps = 2)
     current_frame = 0
 
     for image in images:
@@ -94,16 +94,22 @@ for speaker in speakerTimes['data']:
     # I might throw an error here in the future
     if not grabbed:
         break
-
+    
+    # crop out the sign language box for face recognition
+    dimensions = frame.shape
+    crop = math.floor(dimensions[1]*.75)
+    frame_crop = frame[0:crop, 0:dimensions[0]] # Crop from {x, y, w, h } => {0, 0, 300, 400}
+#     cv2.imshow("cropped", crop_img)
+ 
     # detect the (x, y)-coordinates of the bounding boxes
     # corresponding to each face in the input frame,
     # then, if there is only one face we want to use that as the thumbnail
-    boxes = face_recognition.face_locations(frame)
+    boxes = face_recognition.face_locations(frame_crop)
     print(len(boxes))
-
-    file_name = "./thumbnail" + str(timestamp) + ".png"
-    file_names.append("./thumbnail" + str(timestamp) + ".png")
-    cv2.imwrite(file_name, frame)
+    if boxes:
+        file_name = "./thumbnail" + str(timestamp) + ".png"
+        file_names.append("./thumbnail" + str(timestamp) + ".png")
+        cv2.imwrite(file_name, frame)
 
 # close the video file pointers
 stream.release()
