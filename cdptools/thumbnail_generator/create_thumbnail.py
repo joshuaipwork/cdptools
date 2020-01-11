@@ -6,6 +6,7 @@ from typing import Tuple
 import argparse
 import pickle
 import time
+from imageio import imread, get_writer
 import json
 from cdptools import CDPInstance, configs
 from pathlib import Path
@@ -13,8 +14,9 @@ from os import path
 
 # Test case event
 event = "37f0be31-c075-4701-be70-a41323ea8a1a"
+gif_max_frames = 20
 
-#construct the argument parser and parse the arguments
+# construct the argument parser and parse the arguments
 
 # ap = argparse.ArgumentParser()
 # ap.add_argument("-i", "--input", required=True,
@@ -46,16 +48,29 @@ def get_video_and_transcript_for_event_id(event_id: str) -> Tuple[Path]:
     return transcript_save_path, video_save_path
 
 
+def create_gif_from_pngs(images):
+    writer = get_writer("thumbnail.gif", fps = 2)
+    current_frame = 0
+
+    for image in images:
+        writer.append_data(imread(image))
+        current_frame = current_frame + 1
+        if current_frame > gif_max_frames:
+            break
+
+    writer.close()
+
+
 # initialize the pointer to the video file and the video writer
 transcript_save_path, video_save_path = get_video_and_transcript_for_event_id(event)
 print(transcript_save_path)
 print(video_save_path)
 stream = cv2.VideoCapture(video_save_path)
 writer = None
+file_names = []
 
 # Get the times to collect thumbnails from
 speakerTimes = json.load(open(transcript_save_path, 'r'))
-
 
 # loop over frames from the video file stream
 for speaker in speakerTimes['data']:
@@ -80,13 +95,21 @@ for speaker in speakerTimes['data']:
     if not grabbed:
         break
 
+    # crop out the sign language box for face recognition
+    dimensions = frame.shape
+    crop = math.floor(dimensions[1]*.75)
+    frame_crop = frame[0:crop, 0:dimensions[0]] # Crop from {x, y, w, h } => {0, 0, 300, 400}
+#     cv2.imshow("cropped", crop_img)
+
     # detect the (x, y)-coordinates of the bounding boxes
     # corresponding to each face in the input frame,
     # then, if there is only one face we want to use that as the thumbnail
-    boxes = face_recognition.face_locations(frame)
+    boxes = face_recognition.face_locations(frame_crop)
     print(len(boxes))
-
-    cv2.imwrite("./thumbnail" + str(timestamp) + ".png", frame)
+    if boxes:
+        file_name = "./thumbnail" + str(timestamp) + ".png"
+        file_names.append("./thumbnail" + str(timestamp) + ".png")
+        cv2.imwrite(file_name, frame)
 
 # close the video file pointers
 stream.release()
@@ -95,55 +118,5 @@ stream.release()
 if writer is not None:
     writer.release()
 
-# def frame_capture():
-#     cap = cv2.VideoCapture("./council_010620_2022001V.mp4")
-#     face_frame = False
-#     count = 60
-#     while not face_frame and count <150:
-#         cap.set(1, count)
-#         ret, frame = cap.read()
-#         cv2.imwrite("frame.jpg", frame)
-#         print(f'Frame {count} extracted')
-#         count += 60
-#     pass
-
-# loop over frames from the video file stream
-# 
-
-
-#         while not cap.isOpened():
-#                 cap = cv2.VideoCapture("video.mp4")
-#                 cv2.waitKey(1000)
-#                 print "Wait for the header"
-
-# pos_frame = cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
-#     flag, frame = cap.read()
-#     if flag:
-#             # The frame is ready and already captured
-#             cv2.imshow('video', frame)
-#             pos_frame = cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
-#             print str(pos_frame)+" frames"
-#     else:
-#             # The next frame is not ready, so we try to read it again
-#             cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, pos_frame-1)
-#             print "frame is not ready"
-#             # It is better to wait for a while for the next frame to be ready
-#             cv2.waitKey(1000)
-
-#     if cv2.waitKey(10) == 27:
-#             break
-#     if cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES) == cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT):
-#             # If the number of captured frames is equal to the total number of frames,
-#             # we stop
-#             break
-                        
-#         cap = cv2.VideoCapture("video.mp4")
-# total_frames = cap.get(7)
-
-# Here 7 is the prop-Id. You can find more here http://docs.opencv.org/2.4/modules/highgui/doc/reading_and_writing_images_and_video.html
-
-# After that you can set the frame number, suppose i want to extract 100th frame
-
-# cap.set(1, 100)
-# ret, frame = cap.read()
-# cv2.imwrite("path_where_to_save_image", frame)
+# Create a gif from this
+create_gif_from_pngs(file_names)

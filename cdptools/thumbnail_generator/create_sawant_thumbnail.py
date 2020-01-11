@@ -49,7 +49,7 @@ def get_video_and_transcript_for_event_id(event_id: str) -> Tuple[Path]:
 
 
 def create_gif_from_pngs(images):
-    writer = get_writer("thumbnail.gif", fps = 2)
+    writer = get_writer("thumbnail.gif", fps="2")
     current_frame = 0
 
     for image in images:
@@ -60,11 +60,18 @@ def create_gif_from_pngs(images):
 
     writer.close()
 
-
 # initialize the pointer to the video file and the video writer
 transcript_save_path, video_save_path = get_video_and_transcript_for_event_id(event)
 print(transcript_save_path)
 print(video_save_path)
+print("[INFO] processing video...")
+
+# load the known faces and embeddings
+print("[INFO] loading encodings...")
+data = pickle.loads(open("people.enc", "rb").read())
+
+
+# now that we have the video, set up a stream
 stream = cv2.VideoCapture(video_save_path)
 writer = None
 file_names = []
@@ -79,7 +86,7 @@ for speaker in speakerTimes['data']:
     (grabbed, frame) = (None, None)
 
     # Get the middle time of the speaker's first sentence
-    timestamp = speaker['data'][0]['start_time'] + speaker['data'][0]['end_time'] / 2
+    timestamp = (speaker['data'][0]['start_time'] + speaker['data'][0]['end_time']) / 2
     print(timestamp)
 
     # Convert the timestamp to the frame for cv2 to capture
@@ -94,20 +101,47 @@ for speaker in speakerTimes['data']:
     # I might throw an error here in the future
     if not grabbed:
         break
-    
-    # crop out the sign language box for face recognition
-    dimensions = frame.shape
-    crop = math.floor(dimensions[1]*.75)
-    frame_crop = frame[0:crop, 0:dimensions[0]] # Crop from {x, y, w, h } => {0, 0, 300, 400}
-#     cv2.imshow("cropped", crop_img)
- 
+
     # detect the (x, y)-coordinates of the bounding boxes
     # corresponding to each face in the input frame,
     # then, if there is only one face we want to use that as the thumbnail
-    boxes = face_recognition.face_locations(frame_crop)
-    print(len(boxes))
-    if boxes:
-        file_name = "./thumbnail" + str(timestamp) + ".png"
+    boxes = face_recognition.face_locations(frame)
+    encodings = face_recognition.face_encodings(frame, boxes)
+    names = []
+
+    # loop over the facial embeddings
+    for encoding in encodings:
+        # attempt to match each face in the input image to our known
+        # encodings
+        matches = face_recognition.compare_faces(data["encodings"], encoding)
+        name = "Unknown"
+
+        # check to see if we have found a match
+        if True in matches:
+            # find the indexes of all matched faces then initialize a
+            # dictionary to count the total number of times each face
+            # was matched
+            matchedIdxs = [i for (i, b) in enumerate(matches) if b]
+            counts = {}
+
+            # loop over the matched indexes and maintain a count for
+            # each recognized face face
+            for i in matchedIdxs:
+                name = data["names"][i]
+                counts[name] = counts.get(name, 0) + 1
+
+            # determine the recognized face with the largest number
+            # of votes (note: in the event of an unlikely tie Python
+            # will select first entry in the dictionary)
+            name = max(counts, key=counts.get)
+
+        # update the list of names
+        names.append(name)
+
+    file_name = "./thumbnail" + str(timestamp) + ".png"
+
+    print(names)
+    if len(names) == 1 and "./dataset/kshama_sawant" in names:
         file_names.append("./thumbnail" + str(timestamp) + ".png")
         cv2.imwrite(file_name, frame)
 
@@ -120,3 +154,13 @@ if writer is not None:
 
 # Create a gif from this
 create_gif_from_pngs(file_names)
+
+
+
+
+
+
+
+
+
+
