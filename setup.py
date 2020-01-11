@@ -66,7 +66,9 @@ seattle_requirements = [
     "cryptography>=2.8",
     "firebase-admin==2.17.0",
     "google-cloud-speech==1.2.0",
-    "google-cloud-storage==1.17.0"
+    "google-cloud-storage==1.17.0",
+    "face_recognition==1.2.3",
+    "opencv-python==4.1.2.30"
 ]
 
 extra_requirements = {
