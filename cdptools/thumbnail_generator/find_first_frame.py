@@ -6,6 +6,7 @@ from typing import Tuple
 import argparse
 import pickle
 import time
+from imageio import imread, get_writer
 import json
 from cdptools import CDPInstance, configs
 from pathlib import Path
@@ -13,7 +14,7 @@ from os import path
 
 # Test case event
 event = "37f0be31-c075-4701-be70-a41323ea8a1a"
-
+gif_max_frames = 20
 
 # construct the argument parser and parse the arguments
 
@@ -47,12 +48,26 @@ def get_video_and_transcript_for_event_id(event_id: str) -> Tuple[Path]:
     return transcript_save_path, video_save_path
 
 
+def create_gif_from_pngs(images):
+    writer = get_writer("thumbnail.gif")
+    current_frame = 0
+
+    for image in images:
+        writer.append_data(imread(image))
+        current_frame = current_frame + 1
+        if current_frame > gif_max_frames:
+            break
+
+    writer.close()
+
+
 # initialize the pointer to the video file and the video writer
 transcript_save_path, video_save_path = get_video_and_transcript_for_event_id(event)
 print(transcript_save_path)
 print(video_save_path)
 stream = cv2.VideoCapture(video_save_path)
 writer = None
+file_names = []
 
 # Get the times to collect thumbnails from
 speakerTimes = json.load(open(transcript_save_path, 'r'))
@@ -86,7 +101,9 @@ for speaker in speakerTimes['data']:
     boxes = face_recognition.face_locations(frame)
     print(len(boxes))
 
-    cv2.imwrite("./thumbnail" + str(timestamp) + ".png", frame)
+    file_name = "./thumbnail" + str(timestamp) + ".png"
+    file_names.append("./thumbnail" + str(timestamp) + ".png")
+    cv2.imwrite(file_name, frame)
 
 # close the video file pointers
 stream.release()
@@ -94,3 +111,6 @@ stream.release()
 # check to see if the video writer point needs to be released
 if writer is not None:
     writer.release()
+
+# Create a gif from this
+create_gif_from_pngs(file_names)
