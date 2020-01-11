@@ -5,19 +5,32 @@
 # import the necessary packages
 import face_recognition
 import cv2
+from typing import Tuple
 import argparse
 import pickle
 import time
 
-# construct the argument parser and parse the arguments
+#construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--input", required=True,
-                help="path to input video")
+                help="event id for council video")
 args = vars(ap.parse_args())
 
+# Jackson code for pulling transcript and video from database
+def get_video_and_transcript_for_event_id(event_id: str) -> Tuple[Path]:
+    event = seattle.database.select_row_by_id("event", event_id)
+    transcript = seattle.database.select_rows_as_list(
+        "transcript",
+        filters=[("event_id", event_id)]
+    )[0]
+    file = seattle.database.select_row_by_id("file", transcript["file_id"])
+    transcript_save_path = seattle.file_store.download_file(file["filename"], overwrite=True)
+    video_save_path = seattle.file_store._external_resource_copy(event["video_uri"], overwrite=True)
+    return transcript_save_path, video_save_path
+
 # initialize the pointer to the video file and the video writer
-print("[INFO] processing video...")
-stream = cv2.VideoCapture(args["input"])
+transcript_save_path, video_save_path = get_video_and_transcript_for_event_id(args["input"])
+stream = cv2.VideoCapture(video_save_path)
 writer = None
 
 # loop over frames from the video file stream
