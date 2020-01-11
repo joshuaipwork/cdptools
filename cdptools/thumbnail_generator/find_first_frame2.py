@@ -10,20 +10,21 @@ import argparse
 import pickle
 import time
 import json
-from cdptool import CDPInstance, configs
+from cdptools import CDPInstance, configs
 from pathlib import Path
 
 
 # Test case event
-event = 37f0be31-c075-4701-be70-a41323ea8a1a
+event = "37f0be31-c075-4701-be70-a41323ea8a1a"
 
 
 #construct the argument parser and parse the arguments
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--input", required=True,
-                help="event id for council video")
-args = vars(ap.parse_args())
+# ap = argparse.ArgumentParser()
+# ap.add_argument("-i", "--input", required=True,
+#                 help="event id for council video")
+# args = vars(ap.parse_args())
+# args["input"] = event
 
 # Jackson code for pulling transcript and video from database
 def get_video_and_transcript_for_event_id(event_id: str) -> Tuple[Path]:
@@ -39,10 +40,8 @@ def get_video_and_transcript_for_event_id(event_id: str) -> Tuple[Path]:
     return transcript_save_path, video_save_path
 
 # initialize the pointer to the video file and the video writer
-if not args["input"]:
-    args["input"] = event
     
-transcript_save_path, video_save_path = get_video_and_transcript_for_event_id(args["input"])
+transcript_save_path, video_save_path = get_video_and_transcript_for_event_id(event)
 print(transcript_save_path)
 stream = cv2.VideoCapture(video_save_path)
 
@@ -53,6 +52,10 @@ stream.release()
 writer = None
 pass
 
+# CURRENT ERROR:
+#   File "cdptools/thumbnail_generator/find_first_frame.py", line 46, in <module>
+#     stream = cv2.VideoCapture(video_save_path)
+# TypeError: an integer is required (got type PosixPath)
 
 # def frame_capture():
 #     cap = cv2.VideoCapture("./council_010620_2022001V.mp4")
@@ -69,3 +72,40 @@ pass
 # loop over frames from the video file stream
 # 
 
+
+#         while not cap.isOpened():
+#                 cap = cv2.VideoCapture("video.mp4")
+#                 cv2.waitKey(1000)
+#                 print "Wait for the header"
+
+# pos_frame = cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
+#     flag, frame = cap.read()
+#     if flag:
+#             # The frame is ready and already captured
+#             cv2.imshow('video', frame)
+#             pos_frame = cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
+#             print str(pos_frame)+" frames"
+#     else:
+#             # The next frame is not ready, so we try to read it again
+#             cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, pos_frame-1)
+#             print "frame is not ready"
+#             # It is better to wait for a while for the next frame to be ready
+#             cv2.waitKey(1000)
+
+#     if cv2.waitKey(10) == 27:
+#             break
+#     if cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES) == cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT):
+#             # If the number of captured frames is equal to the total number of frames,
+#             # we stop
+#             break
+                        
+#         cap = cv2.VideoCapture("video.mp4")
+# total_frames = cap.get(7)
+
+# Here 7 is the prop-Id. You can find more here http://docs.opencv.org/2.4/modules/highgui/doc/reading_and_writing_images_and_video.html
+
+# After that you can set the frame number, suppose i want to extract 100th frame
+
+# cap.set(1, 100)
+# ret, frame = cap.read()
+# cv2.imwrite("path_where_to_save_image", frame)
